@@ -37,6 +37,10 @@ jobs:
       - name: Install frontend dependencies
         run: npm install
 
+      - name: Lock compatible Brotli allocator dependencies
+        working-directory: src-tauri
+        run: cargo update -p alloc-no-stdlib --precise 2.0.4
+
       - name: Build Tauri app
         run: npm run tauri build
 
