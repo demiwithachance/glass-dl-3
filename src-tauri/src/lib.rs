@@ -217,7 +217,8 @@ fn emit_error(app: &AppHandle, message: String) {
 #[tauri::command]
 fn open_folder(folder: Option<String>) -> Result<(), String> {
     let path = folder.map(PathBuf::from).map(Ok).unwrap_or_else(default_downloads)?;
-    hidden(Command::new("explorer.exe")).arg(path).spawn().map_err(|e| format!("Could not open folder: {e}"))?;
+    let mut command = Command::new("explorer.exe");
+    hidden(&mut command).arg(path).spawn().map_err(|e| format!("Could not open folder: {e}"))?;
     Ok(())
 }
 
