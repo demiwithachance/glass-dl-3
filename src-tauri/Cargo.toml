@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "A lightweight glass UI for yt-dlp"
 authors = ["Glass DL"]
 edition = "2021"
+rust-version = "1.85"
 
 [lib]
 name = "glass_dl_lib"
