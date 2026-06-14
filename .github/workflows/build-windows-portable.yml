@@ -13,15 +13,17 @@ jobs:
   build-windows-portable:
     name: Build Windows portable app
     runs-on: windows-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
     steps:
       - name: Check out source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Install Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
-          node-version-file: .nvmrc
+          node-version: 22
           cache: npm
 
       - name: Install Rust stable
