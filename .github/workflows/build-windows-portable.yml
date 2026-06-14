@@ -1,0 +1,73 @@
+name: Build Windows Portable
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - master
+    tags:
+      - "v*"
+
+jobs:
+  build-windows-portable:
+    name: Build Windows portable app
+    runs-on: windows-latest
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Install Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust packages
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install frontend dependencies
+        run: npm install
+
+      - name: Build Tauri app
+        run: npm run tauri build
+
+      - name: Assemble portable folder
+        shell: pwsh
+        run: |
+          $portable = "artifact/Glass-DL-Portable"
+          New-Item -ItemType Directory -Force -Path "$portable/tools" | Out-Null
+          New-Item -ItemType Directory -Force -Path "$portable/assets/sprites" | Out-Null
+
+          Copy-Item "src-tauri/target/release/glass-dl.exe" "$portable/Glass DL.exe"
+          Copy-Item "tools/README.txt" "$portable/tools/README.txt"
+          Copy-Item "assets/sprites/README.md" "$portable/assets/sprites/README.md"
+          Copy-Item "README.md" "$portable/README.md"
+
+          @"
+          Add these files to this tools folder:
+
+          Required:
+            yt-dlp.exe
+
+          Recommended:
+            ffmpeg.exe
+            ffprobe.exe
+            deno.exe (optional JavaScript runtime for more complete YouTube formats)
+
+          Open Glass DL.exe after adding the tools.
+          "@ | Set-Content "$portable/tools/PLACE-TOOLS-HERE.txt"
+
+      - name: Upload portable Windows build
+        uses: actions/upload-artifact@v4
+        with:
+          name: Glass-DL-Windows-Portable
+          path: artifact/Glass-DL-Portable
+          if-no-files-found: error
+          retention-days: 30
