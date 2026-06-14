@@ -27,7 +27,7 @@ jobs:
           cache: npm
 
       - name: Install Rust stable
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@1.85.1
 
       - name: Cache Rust packages
         uses: Swatinem/rust-cache@v2
