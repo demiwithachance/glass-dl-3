@@ -29,6 +29,6 @@
     "resources": {
       "../assets/sprites/": "assets/sprites/"
     },
-    "icon": []
+    "icon": ["icons/icon.ico"]
   }
 }
