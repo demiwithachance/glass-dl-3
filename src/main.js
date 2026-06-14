@@ -108,16 +108,14 @@ const setBusy = (busy) => {
 
 // Add loader.gif, loader.webp, or loader.png to assets/sprites to replace the CSS loader.
 const loadOptionalSprite = async () => {
-  for (const name of ["loader.gif", "loader.webp", "loader.png"]) {
-    try {
-      const response = await fetch(`/sprites/${name}`, { method: "HEAD" });
-      if (!response.ok || response.headers.get("content-type")?.includes("text/html")) continue;
-      $("loaderOrb").classList.add("custom-sprite");
-      $("loaderOrb").style.backgroundImage = `url("/sprites/${name}")`;
-      return;
-    } catch {
-      // Keep the built-in loader when an optional sprite cannot be loaded.
-    }
+  try {
+    const sprite = await invoke("optional_sprite");
+    if (!sprite) return;
+    const blob = new Blob([new Uint8Array(sprite.bytes)], { type: sprite.mimeType });
+    $("loaderOrb").classList.add("custom-sprite");
+    $("loaderOrb").style.backgroundImage = `url("${URL.createObjectURL(blob)}")`;
+  } catch {
+    // Keep the built-in loader when an optional sprite cannot be loaded.
   }
 };
 
