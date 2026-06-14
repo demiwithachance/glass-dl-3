@@ -47,6 +47,10 @@ struct CompleteEvent { path: String, file_name: String, folder: String }
 #[derive(Clone, Serialize)]
 struct ErrorEvent { message: String }
 
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct SpriteAsset { mime_type: String, bytes: Vec<u8> }
+
 fn hidden(command: &mut Command) -> &mut Command {
     #[cfg(target_os = "windows")]
     command.creation_flags(CREATE_NO_WINDOW);
@@ -130,6 +134,21 @@ fn readable_error(raw: &str) -> String {
     cleaned.strip_prefix("ERROR: ").unwrap_or(cleaned).to_string()
 }
 
+#[tauri::command]
+fn optional_sprite() -> Option<SpriteAsset> {
+    let exe_dir = std::env::current_exe().ok().and_then(|p| p.parent().map(Path::to_path_buf));
+    let cwd = std::env::current_dir().ok();
+    for base in [exe_dir, cwd].into_iter().flatten() {
+        for (name, mime_type) in [("loader.gif", "image/gif"), ("loader.webp", "image/webp"), ("loader.png", "image/png")] {
+            let path = base.join("assets").join("sprites").join(name);
+            if let Ok(bytes) = fs::read(path) {
+                return Some(SpriteAsset { mime_type: mime_type.into(), bytes });
+            }
+        }
+    }
+    None
+}
+
 fn download_args(request: &DownloadRequest, ffmpeg: Option<&Path>, deno: Option<&Path>, output: &Path) -> Vec<String> {
     let mut args = vec![
         "--newline".into(), "--no-playlist".into(),
@@ -174,13 +193,12 @@ fn start_download(app: AppHandle, request: DownloadRequest) -> Result<(), String
         };
         let stdout = child.stdout.take().unwrap();
         let stderr = child.stderr.take().unwrap();
-        let error_app = app.clone();
-        std::thread::spawn(move || {
+        let error_thread = std::thread::spawn(move || {
             let mut last = String::new();
             for line in BufReader::new(stderr).lines().map_while(Result::ok) {
                 if !line.trim().is_empty() { last = line; }
             }
-            if !last.is_empty() && !last.contains("WARNING:") { let _ = error_app.emit("download-log-error", ErrorEvent { message: last }); }
+            last
         });
         let mut completed_path: Option<PathBuf> = None;
         for line in BufReader::new(stdout).lines().map_while(Result::ok) {
@@ -203,7 +221,15 @@ fn start_download(app: AppHandle, request: DownloadRequest) -> Result<(), String
                     folder: folder.to_string_lossy().into_owned(),
                 });
             }
-            Ok(_) => emit_error(&app, "Download failed. Check the link, your connection, and yt-dlp version.".into()),
+            Ok(_) => {
+                let stderr_message = error_thread.join().unwrap_or_default();
+                let message = if stderr_message.is_empty() {
+                    "Download failed. Check the link, your connection, and yt-dlp version.".into()
+                } else {
+                    readable_error(&stderr_message)
+                };
+                emit_error(&app, message);
+            }
             Err(e) => emit_error(&app, format!("Could not finish the download process: {e}")),
         }
     });
@@ -226,7 +252,7 @@ fn open_folder(folder: Option<String>) -> Result<(), String> {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
-        .invoke_handler(tauri::generate_handler![tool_status, fetch_video_info, start_download, open_folder])
+        .invoke_handler(tauri::generate_handler![tool_status, optional_sprite, fetch_video_info, start_download, open_folder])
         .run(tauri::generate_context!())
         .expect("error while running Glass DL");
 }
