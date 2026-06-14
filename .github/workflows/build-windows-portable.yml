@@ -41,6 +41,52 @@ jobs:
         working-directory: src-tauri
         run: cargo update -p alloc-no-stdlib@3.0.0 --precise 2.0.4
 
+      - name: Generate Windows app icon
+        shell: pwsh
+        run: |
+          Add-Type -AssemblyName System.Drawing
+          New-Item -ItemType Directory -Force -Path "src-tauri/icons" | Out-Null
+
+          $bitmap = [System.Drawing.Bitmap]::new(256, 256)
+          $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
+          $graphics.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::AntiAlias
+          $graphics.Clear([System.Drawing.Color]::FromArgb(8, 11, 18))
+
+          $brush = [System.Drawing.Drawing2D.LinearGradientBrush]::new(
+            [System.Drawing.Rectangle]::new(28, 28, 200, 200),
+            [System.Drawing.Color]::FromArgb(139, 124, 255),
+            [System.Drawing.Color]::FromArgb(57, 216, 255),
+            45.0
+          )
+          $graphics.FillEllipse($brush, 28, 28, 200, 200)
+          $pen = [System.Drawing.Pen]::new([System.Drawing.Color]::White, 20)
+          $pen.StartCap = [System.Drawing.Drawing2D.LineCap]::Round
+          $pen.EndCap = [System.Drawing.Drawing2D.LineCap]::Round
+          $graphics.DrawLine($pen, 128, 66, 128, 166)
+          $graphics.DrawLine($pen, 86, 128, 128, 172)
+          $graphics.DrawLine($pen, 170, 128, 128, 172)
+
+          $pngStream = [System.IO.MemoryStream]::new()
+          $bitmap.Save($pngStream, [System.Drawing.Imaging.ImageFormat]::Png)
+          $png = $pngStream.ToArray()
+          $iconStream = [System.IO.File]::Create("src-tauri/icons/icon.ico")
+          $writer = [System.IO.BinaryWriter]::new($iconStream)
+          $writer.Write([uint16]0)
+          $writer.Write([uint16]1)
+          $writer.Write([uint16]1)
+          $writer.Write([byte]0)
+          $writer.Write([byte]0)
+          $writer.Write([byte]0)
+          $writer.Write([byte]0)
+          $writer.Write([uint16]1)
+          $writer.Write([uint16]32)
+          $writer.Write([uint32]$png.Length)
+          $writer.Write([uint32]22)
+          $writer.Write($png)
+          $writer.Dispose()
+          $graphics.Dispose()
+          $bitmap.Dispose()
+
       - name: Build Tauri app
         run: npm run tauri build
 
