@@ -166,11 +166,20 @@ fn download_args(request: &DownloadRequest, ffmpeg: Option<&Path>, deno: Option<
         args.extend(["-x".into(), "--audio-format".into(), request.output_format.clone()]);
     } else {
         let selector = if request.quality == "best" {
-            "bestvideo+bestaudio/best".to_string()
+            if request.output_format == "mp4" {
+                "bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio".to_string()
+            } else {
+                "bestvideo+bestaudio/best".to_string()
+            }
+        } else if request.output_format == "mp4" {
+            format!("bestvideo[ext=mp4][height<={}]+bestaudio[ext=m4a]/bestvideo[height<={}]+bestaudio", request.quality, request.quality)
         } else {
             format!("bestvideo[height<={}]+bestaudio/best[height<={}]", request.quality, request.quality)
         };
         args.extend(["-f".into(), selector, "--merge-output-format".into(), request.output_format.clone()]);
+        if request.output_format == "mp4" {
+            args.extend(["--postprocessor-args".into(), "Merger+ffmpeg_o:-c:v copy -c:a aac -b:a 192k".into()]);
+        }
     }
     args.extend(["--".into(), request.url.clone()]);
     args
@@ -283,5 +292,12 @@ mod tests {
         let args = download_args(&request(), None, Some(deno), Path::new("downloads"));
         let position = args.iter().position(|arg| arg == "--js-runtimes").unwrap();
         assert_eq!(args[position + 1], r"deno:C:\portable\tools\deno.exe");
+    }
+
+    #[test]
+    fn mp4_downloads_request_compatible_audio() {
+        let args = download_args(&request(), None, None, Path::new("downloads"));
+        assert!(args.iter().any(|arg| arg.contains("bestaudio[ext=m4a]")));
+        assert!(args.iter().any(|arg| arg.contains("-c:a aac")));
     }
 }
